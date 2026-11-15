@@ -51,7 +51,11 @@ final class HotkeyMonitor {
 
     private var monitors: [Any] = []
     private var held = false
+    private var pressedAt = Date()
     private var watchdog: Timer?
+    /// A shortcut's second key follows the modifier almost at once. A key pressed later,
+    /// well into a dictation, is a stray and must not throw the recording away.
+    private let chordWindow: TimeInterval = 0.7
 
     private static let modifiers: NSEvent.ModifierFlags = [.command, .option, .control, .shift, .function]
 
@@ -75,7 +79,7 @@ final class HotkeyMonitor {
         if event.type == .keyDown {
             if event.keyCode == UInt16(kVK_Escape) {
                 onCancel?()
-            } else if held, !event.isARepeat {
+            } else if held, !event.isARepeat, Date().timeIntervalSince(pressedAt) < chordWindow {
                 onChord?()
             }
             return
@@ -95,13 +99,17 @@ final class HotkeyMonitor {
 
     private func press() {
         held = true
+        pressedAt = Date()
         onDown?()
         // Some contexts (password fields, the lock screen) swallow the release event.
         // Poll the real keyboard state so a recording can never be left running.
         watchdog?.invalidate()
         watchdog = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self, self.held else { return }
-            if !NSEvent.modifierFlags.contains(self.choice.flag) { self.release() }
+            if !NSEvent.modifierFlags.contains(self.choice.flag) {
+                NSLog("Utter: key release was missed; ending the hold from the keyboard state")
+                self.release()
+            }
         }
     }
 

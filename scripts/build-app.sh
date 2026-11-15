@@ -1,5 +1,6 @@
 #!/bin/bash
 # Builds build/Utter.app. Usage: scripts/build-app.sh [--run]
+# Set UTTER_SIGN_IDENTITY to choose a signing identity; with none available the app is ad-hoc signed.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -10,6 +11,10 @@ mkdir -p "$APP/Contents/MacOS"
 cp .build/release/Utter "$APP/Contents/MacOS/Utter"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources"
+# Release builds pass their build number in (the CI run number).
+if [ -n "${UTTER_BUILD_NUMBER:-}" ]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $UTTER_BUILD_NUMBER" "$APP/Contents/Info.plist"
+fi
 
 # MLX looks for its compiled Metal shaders in a resource bundle with this exact name.
 [ -f .build/metallib/mlx.metallib ] || scripts/build-metallib.sh
@@ -25,7 +30,7 @@ cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 
 # A stable signing identity keeps macOS permission grants across rebuilds.
 # Ad-hoc signing works too, but permissions must be re-granted after every build.
-IDENTITY="${MURMUR_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')}"
+IDENTITY="${UTTER_SIGN_IDENTITY:-$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')}"
 if [ -n "$IDENTITY" ]; then
     codesign --force --sign "$IDENTITY" "$APP"
     echo "Signed with: $IDENTITY"

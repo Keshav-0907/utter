@@ -90,7 +90,11 @@ final class DictationController {
         guard state == .starting || state == .recording, !locked else { return }
         let held = Date().timeIntervalSince(startedAt)
         if held < tapMaxDuration {
-            guard Settings.doubleTapLock else { return stop(.discard) }
+            guard Settings.doubleTapLock else {
+                NSLog("Utter: recording dropped: key was tapped, not held")
+                shortTap = true
+                return stop(.discard, quiet: true)
+            }
             // Could be the first half of a double-tap; keep recording briefly.
             awaitingSecondTap = true
             tapGeneration += 1
@@ -98,6 +102,8 @@ final class DictationController {
             DispatchQueue.main.asyncAfter(deadline: .now() + secondTapWindow) { [weak self] in
                 guard let self, self.tapGeneration == generation, self.awaitingSecondTap else { return }
                 self.awaitingSecondTap = false
+                NSLog("Utter: recording dropped: key was tapped, not held")
+                self.shortTap = true
                 self.stop(.discard, quiet: true)
             }
         } else {
@@ -109,12 +115,14 @@ final class DictationController {
     /// That is a keyboard shortcut, not a dictation: drop the recording without a trace.
     func interruptedByShortcut() {
         guard state == .starting || state == .recording, !locked else { return }
+        NSLog("Utter: recording dropped: another key was pressed with the hotkey (a shortcut)")
         stop(.discard, quiet: true)
     }
 
     /// Escape: throw the recording away.
     func cancel() {
         guard state == .starting || state == .recording else { return }
+        NSLog("Utter: recording dropped: Esc")
         stop(.discard)
     }
 
@@ -135,6 +143,7 @@ final class DictationController {
         locked = false
         awaitingSecondTap = false
         quietDiscard = false
+        shortTap = false
         startedAt = Date()
         armRecordingTimeout()
         hud.listening()
@@ -191,6 +200,8 @@ final class DictationController {
     }
 
     private var quietDiscard = false
+    /// The key was let go too quickly to be a dictation; say so instead of vanishing.
+    private var shortTap = false
 
     private func stop(_ action: Pending, quiet: Bool = false) {
         awaitingSecondTap = false
@@ -217,6 +228,7 @@ final class DictationController {
         DispatchQueue.main.asyncAfter(deadline: .now() + lockedMaxDuration) { [weak self] in
             guard let self, self.lockGeneration == generation else { return }
             guard self.state == .starting || self.state == .recording else { return }
+            NSLog("Utter: recording ended by the 10-minute limit")
             self.stop(.finish)
         }
     }
@@ -226,7 +238,14 @@ final class DictationController {
         state = .finishing
         capture.stop()
         await session?.cancel()
-        if quietDiscard { hud.hide() } else { hud.message("Cancelled", for: 0.8) }
+        if shortTap {
+            hud.message("Hold the key while you speak", for: 1.4)
+        } else if quietDiscard {
+            hud.hide()
+        } else {
+            hud.message("Cancelled", for: 0.8)
+        }
+        shortTap = false
         end()
     }
 

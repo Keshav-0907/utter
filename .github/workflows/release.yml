@@ -1,0 +1,79 @@
+# Every push to main builds Utter and publishes a downloadable disk image as a GitHub release.
+# Pushes to dev (or any other branch) do not build.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned so the build matches the toolchain the dependencies are known to work with.
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
+
+      # `swift build` cannot compile Metal shaders; MLX needs them compiled separately.
+      - name: Install the Metal toolchain
+        run: xcodebuild -downloadComponent MetalToolchain
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+
+      - name: Build the app
+        env:
+          UTTER_BUILD_NUMBER: ${{ github.run_number }}
+        run: scripts/build-app.sh
+
+      - name: Check the build runs
+        run: |
+          out=$(build/Utter.app/Contents/MacOS/Utter --clean-text "Um, it works.")
+          echo "$out"
+          [ "$out" = "It works." ]
+          codesign --verify --strict build/Utter.app
+
+      - name: Make the disk image
+        run: scripts/make-dmg.sh
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
+          tag="v${version}-build.${{ github.run_number }}"
+          cat > notes.md <<NOTES
+          ## Install
+
+          1. Download **Utter.dmg** below and open it.
+          2. Drag **Utter** onto **Applications**.
+          3. The first time, macOS will refuse to open it because this build is not notarized by Apple.
+             Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to Utter.
+          4. Grant Microphone and Accessibility access when Utter asks.
+
+          Requires macOS 26 or later on Apple silicon.
+
+          After updating to a new build, macOS asks for Accessibility access again; remove the old Utter
+          entry in **Privacy & Security → Accessibility** and add the new one.
+
+          Built from ${GITHUB_SHA::7}.
+          NOTES
+          sed -i '' 's/^          //' notes.md
+          gh release create "$tag" build/Utter.dmg \
+            --target "$GITHUB_SHA" \
+            --title "Utter ${version} (build ${{ github.run_number }})" \
+            --notes-file notes.md \
+            --latest

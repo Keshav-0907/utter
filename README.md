@@ -12,12 +12,21 @@ Speech recognition and cleanup both run on your Mac; nothing you say is sent to 
 - **Guarded output.** If a model's answer is not your words in your order, it is discarded and the plain transcript is typed.
 - **History and stats.** Past dictations, words dictated, words per minute and a weekly chart, all stored locally.
 
-## Requirements
+## Install
+
+Download the latest **Utter.dmg** from [Releases](https://github.com/Keshav-0907/utter/releases/latest),
+open it and drag Utter onto Applications.
+
+The build is not notarized by Apple yet, so the first launch is blocked: open
+**System Settings → Privacy & Security**, scroll down and click **Open Anyway** next to Utter.
+Then grant Microphone and Accessibility access when asked. Requires macOS 26 or later on Apple silicon.
+
+## Building from source
+
+Requirements:
 
 - macOS 26 or later on Apple silicon
 - Xcode 26 with the Metal Toolchain (`xcodebuild -downloadComponent MetalToolchain`)
-
-## Build and run
 
 ```sh
 scripts/build-app.sh --run
@@ -47,10 +56,15 @@ Outside the app bundle, copy `.build/metallib/mlx.metallib` next to the binary f
 - `eval/cleanup-cases.json` – the cleanup test set
 - `scripts` – app bundling, shader compilation and the icon generator
 
+## Branches and releases
+
+Work happens on `dev`. Every push to `main` runs the release workflow, which builds the app and
+publishes a new `Utter.dmg` under Releases. Pushes to `dev` do not build.
+
 ## Status
 
 Early. Known limits:
 
-- The built app currently depends on files in this checkout's `.build` folder, so it runs on the Mac that built it. A distributable build is not set up yet.
+- Release builds are not notarized, so macOS blocks the first launch and asks for Accessibility access again after each update.
 - English only.
 - The cleanup test set is small (20 cases), so its scores are indicative, not a benchmark.
