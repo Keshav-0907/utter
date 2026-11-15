@@ -60,8 +60,11 @@ Outside the app bundle, copy `.build/metallib/mlx.metallib` next to the binary f
 ## Branches and releases
 
 Work happens on `dev`. Every push to `main` runs the release workflow, which builds the app and
-publishes a new `Utter.dmg` under Releases. Pushes to `dev` do not build, and neither do changes that
-only touch `web` or documentation.
+publishes a new `Utter.dmg` under Releases. Pushes to `dev` do not build the app, and neither do changes
+that only touch `web` or documentation.
+
+The website is deployed by Vercel from the `web` folder: a push to `main` updates the live site, other
+branches get a preview, and nothing is built unless something under `web` changed.
 
 ## Status
 
