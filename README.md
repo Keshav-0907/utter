@@ -54,12 +54,14 @@ Outside the app bundle, copy `.build/metallib/mlx.metallib` next to the binary f
 - `Sources/Utter/Cleanup` – cleanup engines, the model downloader, sentence routing and the output guard
 - `Sources/Utter` – the menu bar app, hotkey handling, audio capture, text insertion and the window
 - `eval/cleanup-cases.json` – the cleanup test set
-- `scripts` – app bundling, shader compilation and the icon generator
+- `scripts` – app bundling, shader compilation, the disk image and its artwork, the icon generator
+- `web` – the website (Next.js); run it with `npm install && npm run dev` inside `web`
 
 ## Branches and releases
 
 Work happens on `dev`. Every push to `main` runs the release workflow, which builds the app and
-publishes a new `Utter.dmg` under Releases. Pushes to `dev` do not build.
+publishes a new `Utter.dmg` under Releases. Pushes to `dev` do not build, and neither do changes that
+only touch `web` or documentation.
 
 ## Status
 

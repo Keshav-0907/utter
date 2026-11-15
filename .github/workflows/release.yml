@@ -5,6 +5,10 @@ name: Release
 on:
   push:
     branches: [main]
+    # Website and documentation changes do not need a new app build.
+    paths-ignore:
+      - "web/**"
+      - "**.md"
 
 permissions:
   contents: write
