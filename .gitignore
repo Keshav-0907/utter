@@ -1,0 +1,6 @@
+.build/
+build/
+.swiftpm/
+.DS_Store
+# The demo video project is kept out of the app repository.
+video/
